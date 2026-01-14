@@ -1,0 +1,89 @@
+name: Test JSON Extraction
+
+on:
+  workflow_dispatch: # Allows manual trigger
+
+jobs:
+  extract-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Checkout repository"
+        uses: actions/checkout@v4
+
+      - name: "Extract 4 elements from JSON"
+        run: |
+          # Use jq to extract specific fields
+          FIRST_NAME=$(jq -r '.first_name' test.json)
+          DOB=$(jq -r '.personal_data.dob' test.json)
+          FIRST_HOBBY=$(jq -r '.personal_data.hobbies[0]' test.json)
+          ZIP_CODE=$(jq -r '.address.zip' test.json)
+
+          echo "Extracted Data:"
+          echo "Name: $FIRST_NAME"
+          echo "DOB: $DOB"
+          echo "Hobby: $FIRST_HOBBY"
+          echo "Zip: $ZIP_CODE"
+
+  extract-and-compare:
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Checkout repository"
+        uses: actions/checkout@v4
+
+      - name: "Extract and Compare 2 elements"
+        run: |
+          # 1. Extract and compare 'active' status
+          IS_ACTIVE=$(jq -r '.active' test.json)
+          if [ "$IS_ACTIVE" = "true" ]; then
+            echo "✅ User is active."
+          else
+            echo "❌ User is not active."
+            exit 1
+          fi
+
+          # 2. Extract and compare 'height_inches'
+          HEIGHT=$(jq -r '.personal_data.height_inches' test.json)
+          if [ "$HEIGHT" -eq 72 ]; then
+            echo "✅ Height matches expected 72 inches."
+          else
+            echo "❌ Height mismatch! Found: $HEIGHT"
+            exit 1
+          fi
+
+
+  send-log-to-loki:
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Send CI event to Grafana"
+        if: always()
+        env:
+          LOKI_URL: https://logs-prod-<region>.grafana.net/loki/api/v1/push
+          LOKI_USER: ${{ secrets.GRAFANA_INSTANCE_ID }}
+          LOKI_PASS: ${{ secrets.GRAFANA_API_KEY }}
+        run: |
+          TIMESTAMP=$(date +%s%N)
+          STATUS="${{ job.status }}"
+      
+          cat <<EOF | curl -s -u "$LOKI_USER:$LOKI_PASS" \
+            -H "Content-Type: application/json" \
+            -X POST "$LOKI_URL" \
+            --data-binary @-
+          {
+            "streams": [
+              {
+                "stream": {
+                  "source": "github_actions",
+                  "repo": "${{ github.repository }}",
+                  "workflow": "${{ github.workflow }}",
+                  "branch": "${{ github.ref_name }}",
+                  "status": "$STATUS"
+                },
+                "values": [
+                  ["$TIMESTAMP", "{\"message\":\"CI run finished\",\"status\":\"$STATUS\"}"]
+                ]
+              }
+            ]
+          }
+          EOF
+    
+          
