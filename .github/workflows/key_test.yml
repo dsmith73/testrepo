@@ -1,4 +1,4 @@
-name: Test JSON Extraction
+name: test-json-extraction
 
 on:
   workflow_dispatch: # Allows manual trigger
