@@ -13,10 +13,10 @@ jobs:
       - name: "Extract 4 elements from JSON"
         run: |
           # Use jq to extract specific fields
-          FIRST_NAME=$(jq -r '.first_name' test.json)
-          DOB=$(jq -r '.personal_data.dob' test.json)
-          FIRST_HOBBY=$(jq -r '.personal_data.hobbies[0]' test.json)
-          ZIP_CODE=$(jq -r '.address.zip' test.json)
+          FIRST_NAME=$(jq -r '.first_name' t1/keys.json)
+          DOB=$(jq -r '.personal_data.dob' t1/keys.json)
+          FIRST_HOBBY=$(jq -r '.personal_data.hobbies[0]' t1/keys.json)
+          ZIP_CODE=$(jq -r '.address.zip' t1/keys.json)
 
           echo "Extracted Data:"
           echo "Name: $FIRST_NAME"
@@ -33,7 +33,7 @@ jobs:
       - name: "Extract and Compare 2 elements"
         run: |
           # 1. Extract and compare 'active' status
-          IS_ACTIVE=$(jq -r '.active' test.json)
+          IS_ACTIVE=$(jq -r '.active' t1/keys.json)
           if [ "$IS_ACTIVE" = "true" ]; then
             echo "✅ User is active."
           else
@@ -42,7 +42,7 @@ jobs:
           fi
 
           # 2. Extract and compare 'height_inches'
-          HEIGHT=$(jq -r '.personal_data.height_inches' test.json)
+          HEIGHT=$(jq -r '.personal_data.height_inches' t1/keys.json)
           if [ "$HEIGHT" -eq 72 ]; then
             echo "✅ Height matches expected 72 inches."
           else
