@@ -51,12 +51,13 @@ jobs:
           fi
 
 
-  send-log-to-loki:
-    needs: extract-and-verify
-    if: always()
-    runs-on: ubuntu-latest
-    steps:
+  # send-log-to-loki:
+    # needs: extract-and-verify
+    # if: always()
+    # runs-on: ubuntu-latest
+    # steps:
       - name: "Send CI event to Grafana"
+        if: always()
         env:
           LOKI_URL: https://logs-prod-042.grafana.net/loki/api/v1/push
           LOKI_USER: "1452749" #${{ secrets.GRAFANA_INSTANCE_ID }}
