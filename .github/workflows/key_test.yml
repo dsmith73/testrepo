@@ -24,11 +24,11 @@ jobs:
           echo "Hobby: $FIRST_HOBBY"
           echo "Zip: $ZIP_CODE"
 
-  extract-and-compare:
-    runs-on: ubuntu-latest
-    steps:
-      - name: "Checkout repository"
-        uses: actions/checkout@v4
+  # extract-and-compare:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: "Checkout repository"
+  #       uses: actions/checkout@v4
 
       - name: "Extract and Compare 2 elements"
         run: |
@@ -51,9 +51,9 @@ jobs:
           fi
 
 
-  send-log-to-loki:
-    runs-on: ubuntu-latest
-    steps:
+  # send-log-to-loki:
+  #   runs-on: ubuntu-latest
+  #   steps:
       - name: "Send CI event to Grafana"
         if: always()
         env:
