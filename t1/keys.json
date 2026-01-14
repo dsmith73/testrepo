@@ -35,5 +35,7 @@
       "type": "cat",
       "breed": "american bobtail"      
     }
-  ]
+  ],
+  "email": "abc.123@xyz.com",
+  "id": 101101
 }
