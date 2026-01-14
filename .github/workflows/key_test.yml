@@ -41,12 +41,12 @@ jobs:
             exit 1
           fi
 
-          # 2. Extract and compare 'height_inches'
-          HEIGHT=$(jq -r '.personal_data.height_inches' t1/keys.json)
-          if [ "$HEIGHT" -eq 72 ]; then
-            echo "✅ Height matches expected 72 inches."
+          # 2. Extract and compare 'phone'
+          PHONE=$(jq -r '.phone' t1/keys.json)
+          if [ "$PHONE" -eq "5556667778" ]; then
+            echo "✅ Phone matches"
           else
-            echo "❌ Height mismatch! Found: $HEIGHT"
+            echo "❌ Phone mismatch! Found: $PHONE"
             exit 1
           fi
 
@@ -57,9 +57,9 @@ jobs:
       - name: "Send CI event to Grafana"
         if: always()
         env:
-          LOKI_URL: https://logs-prod-<region>.grafana.net/loki/api/v1/push
-          LOKI_USER: ${{ secrets.GRAFANA_INSTANCE_ID }}
-          LOKI_PASS: ${{ secrets.GRAFANA_API_KEY }}
+          LOKI_URL: https://logs-prod-042.grafana.net/loki/api/v1/push
+          LOKI_USER: "1452749" #${{ secrets.GRAFANA_INSTANCE_ID }}
+          LOKI_PASS: "glc_eyJvIjoiMzcwNzAwIiwibiI6InN0YWNrLTE0OTQ5NTYtaGwtcmVhZC1kc21pdGg3My1naXRodWItbG9ncyIsImsiOiJYM2JteDNFNjRsZTNJejVxMDg0TmJnbjgiLCJtIjp7InIiOiJwcm9kLXVzLWVhc3QtMyJ9fQ==" # ${{ secrets.GRAFANA_API_KEY }} 
         run: |
           TIMESTAMP=$(date +%s%N)
           STATUS="${{ job.status }}"
