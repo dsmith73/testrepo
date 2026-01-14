@@ -43,7 +43,7 @@ jobs:
 
           # 2. Extract and compare 'phone'
           PHONE=$(jq -r '.phone' t1/keys.json)
-          if [ "$PHONE" -eq "5556667778" ]; then
+          if [ "$PHONE" -eq "5556667777" ]; then
             echo "✅ Phone matches"
           else
             echo "❌ Phone mismatch! Found: $PHONE"
