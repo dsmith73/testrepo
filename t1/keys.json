@@ -1,41 +1,45 @@
 {
   "first_name": "happy",
   "last_name": "joy",
-  "dob": "2026-01-14T10:39:00.000",
-  "age": 1,
-  "hair": "black",
-  "eyes": "green",
-  "height_inches": 72,
-  "weight_lbs": 420.5, 
-  "phone": "5556667777",
-  "address1": "121 go lucky blvd",
-  "address2": "",
-  "apt": "",
-  "city": "rockford",
-  "county": "",
-  "state": "pa",
-  "country": "us",
-  "zip": "98352",
+  "personal_data": {
+    "dob": "2026-01-14T10:39:00.000",
+    "age": 1,
+    "hair": "black",
+    "eyes": "green",
+    "height_inches": 72,
+    "weight_lbs": 420.5, 
+    "hobbies": [
+      "code",
+      "lockpicking",
+      "bourbon"
+    ],
+    "pets": [
+      {
+        "name": "winnie",
+        "age": 7,
+        "type": "dog",
+        "breed": "golden-doodle"
+      },
+      {
+        "name": "sadie",
+        "age": 4,
+        "type": "cat",
+        "breed": "american bobtail"      
+      }
+    ]
+  },
+  "address": {
+    "address1": "121 go lucky blvd",
+    "address2": "",
+    "apt": "",
+    "city": "rockford",
+    "county": "",
+    "state": "pa",
+    "country": "us",
+    "zip": "98352"
+  },
   "active": true,
-  "hobbies": [
-    "code",
-    "lockpicking",
-    "bourbon"
-  ],
-  "pets": [
-    {
-      "name": "winnie",
-      "age": 7,
-      "type": "dog",
-      "breed": "golden-doodle"
-    },
-    {
-      "name": "sadie",
-      "age": 4,
-      "type": "cat",
-      "breed": "american bobtail"      
-    }
-  ],
+  "phone": "5556667777",
   "email": "abc.123@xyz.com",
   "id": 101101
 }
