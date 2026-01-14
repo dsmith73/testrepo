@@ -1,0 +1,26 @@
+{
+  "first_name": "happy",
+  "last_name": "joy",
+  "dob": "2026-01-14T10:39:00.000",
+  "age": 1,
+  "active": true,
+  "hobbies": [
+    "code",
+    "lockpicking",
+    "bourbon"
+  ],
+  "pets": [
+    {
+      "name": "winnie",
+      "age": 7,
+      "type": "dog",
+      "breed": "golden-doodle"
+    },
+    {
+      "name": "sadie",
+      "age": 4,
+      "type": "cat",
+      "breed": "american bobtail"      
+    }
+  ]
+}
