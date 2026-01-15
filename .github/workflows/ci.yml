@@ -21,4 +21,4 @@ jobs:
     with:
       event_type: ci
     secrets:
-      GRAFANA_SECRET_JSON: ${{ secrets.GRAFANA_SECRET_JSON }}
+      GRAFANA_SECRET_JSON: ${{ secrets.LOKI_SECRET_JSON }}
