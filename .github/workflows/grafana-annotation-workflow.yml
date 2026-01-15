@@ -55,25 +55,26 @@ jobs:
           RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           TS=$(date +%s%N)
-
+      
           LABELS="source=\"github_actions\",repo=\"$REPO\",branch=\"$BRANCH\",workflow=\"$WORKFLOW\",type=\"$EVENT_TYPE\",status=\"$STATUS\""
-
+      
           if [ -n "$ENVIRONMENT" ]; then
             LABELS="$LABELS,env=\"$ENVIRONMENT\""
           fi
-
-          cat <<EOF | curl --fail-with-body -sS \
+      
+          cat <<'EOF' | curl --fail-with-body -sS \
             -u "$LOKI_USER:$LOKI_PASS" \
             -H "Content-Type: application/json" \
             -X POST "$LOKI_URL/loki/api/v1/push" \
             --data-binary @-
+          {
             "streams": [
               {
-                "stream": { $LABELS },
+                "stream": { '"$LABELS"' },
                 "values": [
                   [
-                    "$TS",
-                    "{\"message\":\"GitHub Actions $EVENT_TYPE\",\"repo\":\"$REPO\",\"branch\":\"$BRANCH\",\"workflow\":\"$WORKFLOW\",\"status\":\"$STATUS\",\"commit\":\"${COMMIT:0:7}\",\"actor\":\"$ACTOR\",\"run_url\":\"$RUN_URL\"}"
+                    "'"$TS"'",
+                    "{\"message\":\"GitHub Actions '"$EVENT_TYPE"'\",\"repo\":\"'"$REPO"'\",\"branch\":\"'"$BRANCH"'\",\"workflow\":\"'"$WORKFLOW"'\",\"status\":\"'"$STATUS"'\",\"commit\":\"'"${COMMIT:0:7}"'\",\"actor\":\"'"$ACTOR"'\",\"run_url\":\"'"$RUN_URL"'\"}"
                   ]
                 ]
               }
