@@ -1,0 +1,24 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Run CI unit tests here"
+
+
+
+
+  grafana-annotate:
+    needs: build
+    if: always()
+    uses: dsmith73/testrepo/.github/workflows/grafana-annotation-workflow.yml@main
+    with:
+      event_type: ci
+    secrets:
+      GRAFANA_SECRET_JSON: ${{ secrets.GRAFANA_SECRET_JSON }}
