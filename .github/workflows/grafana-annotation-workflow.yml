@@ -23,10 +23,10 @@ jobs:
     steps:
       - name: Extract Grafana Loki credentials
         env:
-          GRAFANA_SECRET_JSON: ${{ secrets.GRAFANA_SECRET_JSON }}
+          GRAFANA_SECRET_JSON: ${{ secrets.LOKI_SECRET_JSON }}
         run: |
-          echo "$GRAFANA_SECRET_JSON" | jq -e '.GRAFANA_API_KEY and .LOKI_URL' >/dev/null
-          echo "$GRAFANA_SECRET_JSON" | jq -r '
+          echo "$LOKI_SECRET_JSON" | jq -e '.LOKI_USER and .LOKI_PASS and .LOKI_URL' >/dev/null
+          echo "$LOKI_SECRET_JSON" | jq -r '
             "LOKI_USER=\(.LOKI_USER)\nLOKI_PASS=\(.LOKI_PASS)\nLOKI_URL=\(.LOKI_URL)"
           ' >> $GITHUB_ENV
 
