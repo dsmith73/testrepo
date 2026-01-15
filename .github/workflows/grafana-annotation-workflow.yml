@@ -1,0 +1,68 @@
+name: Grafana Annotation (Reusable)
+
+on:
+  workflow_call:
+    inputs:
+      event_type:
+        description: "ci or cd"
+        required: true
+        type: string
+      environment:
+        description: "Optional environment (prod, staging, etc)"
+        required: false
+        type: string
+    secrets:
+      GRAFANA_SECRET_JSON:
+        required: true
+
+jobs:
+  annotate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Extract Grafana credentials
+        env:
+          GRAFANA_SECRET_JSON: ${{ secrets.GRAFANA_SECRET_JSON }}
+        run: |
+          echo "$GRAFANA_SECRET_JSON" | jq -e '.GRAFANA_API_KEY and .GRAFANA_URL' >/dev/null
+          echo "$GRAFANA_SECRET_JSON" | jq -r '
+            "GRAFANA_API_KEY=\(.GRAFANA_API_KEY)\nGRAFANA_URL=\(.GRAFANA_URL)"
+          ' >> $GITHUB_ENV
+
+      - name: Send Grafana annotation
+        if: always()
+        env:
+          REPO: ${{ github.repository }}
+          BRANCH: ${{ github.ref_name }}
+          WORKFLOW: ${{ github.workflow }}
+          COMMIT: ${{ github.sha }}
+          ACTOR: ${{ github.actor }}
+          STATUS: ${{ job.status }}
+          EVENT_TYPE: ${{ inputs.event_type }}
+          ENVIRONMENT: ${{ inputs.environment }}
+        run: |
+          TIMESTAMP=$(date +%s000)
+
+          TAGS=(
+            "github-actions"
+            "type:$EVENT_TYPE"
+            "status:$STATUS"
+            "repo:$REPO"
+            "branch:$BRANCH"
+            "workflow:$WORKFLOW"
+          )
+
+          if [ -n "$ENVIRONMENT" ]; then
+            TAGS+=("env:$ENVIRONMENT")
+          fi
+
+          TAG_JSON=$(printf '"%s",' "${TAGS[@]}" | sed 's/,$//')
+
+          curl -s -X POST "$GRAFANA_URL/api/annotations" \
+            -H "Authorization: Bearer $GRAFANA_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"time\": $TIMESTAMP,
+              \"text\": \"GitHub Actions $EVENT_TYPE\\nStatus: $STATUS\\nRepo: $REPO\\nBranch: $BRANCH\\nWorkflow: $WORKFLOW\\nCommit: ${COMMIT:0:7}\\nActor: $ACTOR\",
+              \"tags\": [$TAG_JSON]
+            }"
