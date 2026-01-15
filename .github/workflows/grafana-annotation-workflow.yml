@@ -73,12 +73,14 @@ jobs:
             --arg workflow "$WORKFLOW" \
             --arg type "$EVENT_TYPE" \
             --arg status "$STATUS" \
+            --arg actor "$ACTOR" \
             --arg env "$ENVIRONMENT" \
             '{
                source: $source,
                repo: $repo,
                branch: $branch,
                workflow: $workflow,
+               actor: $actor,
                type: $type,
                status: $status
              } + (if $env != "" then {env: $env} else {} end)'
