@@ -13,7 +13,7 @@ on:
         required: false
         type: string
     secrets:
-      GRAFANA_SECRET_JSON:
+      LOKI_SECRET_JSON:
         required: true
 
 jobs:
@@ -37,6 +37,8 @@ jobs:
           echo "LOKI_USER set: ${LOKI_USER:+yes}"
           echo "LOKI_PASS set: ${LOKI_PASS:+yes}"
           echo "LOKI_URL set: ${LOKI_URL:+yes}"
+          echo "LOKI_URL=$LOKI_URL"
+          
 
       - name: Send CI/CD event to Loki
         if: always()
@@ -60,11 +62,11 @@ jobs:
             LABELS="$LABELS,env=\"$ENVIRONMENT\""
           fi
 
-          cat <<EOF | curl -s -u "$LOKI_USER:$LOKI_PASS" \
+          cat <<EOF | curl --fail-with-body -sS \
+            -u "$LOKI_USER:$LOKI_PASS" \
             -H "Content-Type: application/json" \
             -X POST "$LOKI_URL/loki/api/v1/push" \
             --data-binary @-
-          {
             "streams": [
               {
                 "stream": { $LABELS },
