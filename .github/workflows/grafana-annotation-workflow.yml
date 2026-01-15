@@ -61,22 +61,45 @@ jobs:
           if [ -n "$ENVIRONMENT" ]; then
             LABELS="$LABELS,env=\"$ENVIRONMENT\""
           fi
-      
-          cat <<EOF | curl -s -u "$LOKI_USER:$LOKI_PASS" \
+
+
+          cat <<'EOF' | curl --fail-with-body -sS \
+            -u "$LOKI_USER:$LOKI_PASS" \
             -H "Content-Type: application/json" \
-            -X POST "$LOKI_URL" \
+            -X POST "$LOKI_URL/loki/api/v1/push" \
             --data-binary @-
           {
             "streams": [
               {
-                "stream": { "$LABELS" },
+                "stream": { '"$LABELS"' },
                 "values": [
                   [
-                    "$TS",
-                    "{\"message\":\"GitHub Actions \"$EVENT_TYPE\",\"repo\":\"$REPO\",\"branch\":\"$BRANCH\",\"workflow\":\"$WORKFLOW\",\"status\":\"$STATUS\",\"commit\":\"${COMMIT:0:7}\", \"actor\":\"$ACTOR\",\"run_url\":\"$RUN_URL\"}"
+                    "'"$TS"'",
+                    "{\"message\":\"GitHub Actions '"$EVENT_TYPE"'\",\"repo\":\"'"$REPO"'\",\"branch\":\"'"$BRANCH"'\",\"workflow\":\"'"$WORKFLOW"'\",\"status\":\"'"$STATUS"'\",\"commit\":\"'"${COMMIT:0:7}"'\",\"actor\":\"'"$ACTOR"'\",\"run_url\":\"'"$RUN_URL"'\"}"
                   ]
                 ]
               }
             ]
           }
           EOF
+
+
+      
+          # cat <<EOF | curl -s -u "$LOKI_USER:$LOKI_PASS" \
+          #   -H "Content-Type: application/json" \
+          #   -X POST "$LOKI_URL" \
+          #   --data-binary @-
+          # {
+          #   "streams": [
+          #     {
+          #       "stream": { "$LABELS" },
+          #       "values": [
+          #         [
+          #           "$TS",
+          #           "{\"message\":\"GitHub Actions \"$EVENT_TYPE\",\"repo\":\"$REPO\",\"branch\":\"$BRANCH\",\"workflow\":\"$WORKFLOW\",\"status\":\"$STATUS\",\"commit\":\"${COMMIT:0:7}\", \"actor\":\"$ACTOR\",\"run_url\":\"$RUN_URL\"}"
+          #         ]
+          #       ]
+          #     }
+          #   ]
+          # }
+          # EOF
