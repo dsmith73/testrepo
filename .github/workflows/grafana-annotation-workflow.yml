@@ -5,7 +5,7 @@ on:
   workflow_call:
     inputs:
       event_type:
-        description: "ci and cd"
+        description: "ci or cd"
         required: true
         type: string
       environment:
@@ -25,12 +25,17 @@ jobs:
         env:
           LOKI_SECRET_JSON: ${{ secrets.LOKI_SECRET_JSON }}
         run: |
+          # Validate JSON keys
           echo "$LOKI_SECRET_JSON" | jq -e '.LOKI_USER and .LOKI_PASS and .LOKI_URL' >/dev/null
-          echo "$LOKI_SECRET_JSON" | jq -r '
-            "LOKI_USER=\(.LOKI_USER)
-             LOKI_PASS=\(.LOKI_PASS)
-             LOKI_URL=\(.LOKI_URL)"
-          ' >> $GITHUB_ENV
+
+          # Extract variables safely, strip CR/LF
+          LOKI_USER=$(echo "$LOKI_SECRET_JSON" | jq -r '.LOKI_USER' | tr -d '\r\n')
+          LOKI_PASS=$(echo "$LOKI_SECRET_JSON" | jq -r '.LOKI_PASS' | tr -d '\r\n')
+          LOKI_URL=$(echo "$LOKI_SECRET_JSON" | jq -r '.LOKI_URL' | tr -d '\r\n')
+
+          echo "LOKI_USER=$LOKI_USER" >> $GITHUB_ENV
+          echo "LOKI_PASS=$LOKI_PASS" >> $GITHUB_ENV
+          echo "LOKI_URL=$LOKI_URL" >> $GITHUB_ENV
 
       - name: Verify Loki vars are set
         run: |
@@ -38,7 +43,6 @@ jobs:
           echo "LOKI_PASS set: ${LOKI_PASS:+yes}"
           echo "LOKI_URL set: ${LOKI_URL:+yes}"
           echo "LOKI_URL=$LOKI_URL"
-          
 
       - name: Send CI/CD event to Loki
         if: always()
@@ -55,51 +59,40 @@ jobs:
           RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           TS=$(date +%s%N)
-      
-          LABELS="source=\"github_actions\",repo=\"$REPO\",branch=\"$BRANCH\",workflow=\"$WORKFLOW\",type=\"$EVENT_TYPE\",status=\"$STATUS\""
-      
-          if [ -n "$ENVIRONMENT" ]; then
-            LABELS="$LABELS,env=\"$ENVIRONMENT\""
-          fi
 
+          # Build labels JSON safely
+          LABELS_JSON=$(jq -n \
+            --arg source "github_actions" \
+            --arg repo "$REPO" \
+            --arg branch "$BRANCH" \
+            --arg workflow "$WORKFLOW" \
+            --arg type "$EVENT_TYPE" \
+            --arg status "$STATUS" \
+            --arg env "$ENVIRONMENT" \
+            '{
+               source: $source,
+               repo: $repo,
+               branch: $branch,
+               workflow: $workflow,
+               type: $type,
+               status: $status
+             } + (if $env != "" then {env: $env} else {} end)'
+          )
 
-          cat <<'EOF' | curl --fail-with-body -sS \
-            -u "$LOKI_USER:$LOKI_PASS" \
-            -H "Content-Type: application/json" \
-            -X POST "$LOKI_URL/loki/api/v1/push" \
-            --data-binary @-
-          {
-            "streams": [
-              {
-                "stream": { '"$LABELS"' },
-                "values": [
-                  [
-                    "'"$TS"'",
-                    "{\"message\":\"GitHub Actions '"$EVENT_TYPE"'\",\"repo\":\"'"$REPO"'\",\"branch\":\"'"$BRANCH"'\",\"workflow\":\"'"$WORKFLOW"'\",\"status\":\"'"$STATUS"'\",\"commit\":\"'"${COMMIT:0:7}"'\",\"actor\":\"'"$ACTOR"'\",\"run_url\":\"'"$RUN_URL"'\"}"
-                  ]
-                ]
-              }
-            ]
-          }
-          EOF
-
-
-      
-          # cat <<EOF | curl -s -u "$LOKI_USER:$LOKI_PASS" \
-          #   -H "Content-Type: application/json" \
-          #   -X POST "$LOKI_URL" \
-          #   --data-binary @-
-          # {
-          #   "streams": [
-          #     {
-          #       "stream": { "$LABELS" },
-          #       "values": [
-          #         [
-          #           "$TS",
-          #           "{\"message\":\"GitHub Actions \"$EVENT_TYPE\",\"repo\":\"$REPO\",\"branch\":\"$BRANCH\",\"workflow\":\"$WORKFLOW\",\"status\":\"$STATUS\",\"commit\":\"${COMMIT:0:7}\", \"actor\":\"$ACTOR\",\"run_url\":\"$RUN_URL\"}"
-          #         ]
-          #       ]
-          #     }
-          #   ]
-          # }
-          # EOF
+          # Build event JSON and push to Loki
+          jq -n \
+            --arg ts "$TS" \
+            --argjson stream "$LABELS_JSON" \
+            --arg message "{\"message\":\"GitHub Actions $EVENT_TYPE\",\"repo\":\"$REPO\",\"branch\":\"$BRANCH\",\"workflow\":\"$WORKFLOW\",\"status\":\"$STATUS\",\"commit\":\"${COMMIT:0:7}\",\"actor\":\"$ACTOR\",\"run_url\":\"$RUN_URL\"}" \
+            '{
+              streams: [
+                {
+                  stream: $stream,
+                  values: [[$ts, $message]]
+                }
+              ]
+            }' | curl --fail-with-body -sS \
+                  -u "$LOKI_USER:$LOKI_PASS" \
+                  -H "Content-Type: application/json" \
+                  -X POST "$LOKI_URL/loki/api/v1/push" \
+                  --data-binary @-
