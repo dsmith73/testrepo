@@ -62,10 +62,9 @@ jobs:
             LABELS="$LABELS,env=\"$ENVIRONMENT\""
           fi
       
-          cat <<'EOF' | curl --fail-with-body -sS \
-            -u "$LOKI_USER:$LOKI_PASS" \
+          cat <<EOF | curl -s -u "$LOKI_USER:$LOKI_PASS" \
             -H "Content-Type: application/json" \
-            -X POST "$LOKI_URL/loki/api/v1/push" \
+            -X POST "$LOKI_URL" \
             --data-binary @-
           {
             "streams": [
