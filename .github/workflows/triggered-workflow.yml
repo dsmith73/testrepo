@@ -1,0 +1,27 @@
+name: triggered-workflow
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  do-stuff:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "other steps here"
+
+
+
+
+  grafana-annotate:
+    needs: do-stuff
+    if: always()
+    uses: dsmith73/testrepo/.github/workflows/grafana-annotation-workflow.yml@main
+    with:
+      event_type: triggered-workflow
+    secrets:
+      LOKI_SECRET_JSON: ${{ secrets.LOKI_SECRET_JSON }}
+    
+          
