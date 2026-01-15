@@ -1,0 +1,21 @@
+name: CD
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Deploying to prod"
+
+  grafana-annotate:
+    needs: deploy
+    if: always()
+    uses: dsmith73/testrepo/.github/workflows/grafana-annotation-workflow.yml@main
+    with:
+      event_type: cd
+      environment: prod
+    secrets:
+      GRAFANA_SECRET_JSON: ${{ secrets.GRAFANA_SECRET_JSON }}
+
