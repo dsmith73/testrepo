@@ -38,6 +38,11 @@ jobs:
           LOKI_PASS=$(echo "$LOKI_SECRET_JSON" | jq -r '.LOKI_PASS' | tr -d '\r\n')
           LOKI_URL=$(echo "$LOKI_SECRET_JSON" | jq -r '.LOKI_URL' | tr -d '\r\n')
 
+          # Mask secrets
+          echo "::add-mask::$LOKI_USER"
+          echo "::add-mask::$LOKI_PASS"
+          echo "::add-mask::$LOKI_URL"
+
           echo "LOKI_USER=$LOKI_USER" >> $GITHUB_ENV
           echo "LOKI_PASS=$LOKI_PASS" >> $GITHUB_ENV
           echo "LOKI_URL=$LOKI_URL" >> $GITHUB_ENV
@@ -47,7 +52,7 @@ jobs:
           echo "LOKI_USER set: ${LOKI_USER:+yes}"
           echo "LOKI_PASS set: ${LOKI_PASS:+yes}"
           echo "LOKI_URL set: ${LOKI_URL:+yes}"
-          echo "LOKI_URL=$LOKI_URL"
+
 
       - name: Send CI/CD event to Loki
         if: always()
