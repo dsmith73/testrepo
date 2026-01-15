@@ -23,12 +23,20 @@ jobs:
     steps:
       - name: Extract Grafana Loki credentials
         env:
-          GRAFANA_SECRET_JSON: ${{ secrets.LOKI_SECRET_JSON }}
+          LOKI_SECRET_JSON: ${{ secrets.LOKI_SECRET_JSON }}
         run: |
           echo "$LOKI_SECRET_JSON" | jq -e '.LOKI_USER and .LOKI_PASS and .LOKI_URL' >/dev/null
           echo "$LOKI_SECRET_JSON" | jq -r '
-            "LOKI_USER=\(.LOKI_USER)\nLOKI_PASS=\(.LOKI_PASS)\nLOKI_URL=\(.LOKI_URL)"
+            "LOKI_USER=\(.LOKI_USER)
+             LOKI_PASS=\(.LOKI_PASS)
+             LOKI_URL=\(.LOKI_URL)"
           ' >> $GITHUB_ENV
+
+      - name: Verify Loki vars are set
+        run: |
+          echo "LOKI_USER set: ${LOKI_USER:+yes}"
+          echo "LOKI_PASS set: ${LOKI_PASS:+yes}"
+          echo "LOKI_URL set: ${LOKI_URL:+yes}"
 
       - name: Send CI/CD event to Loki
         if: always()
