@@ -21,6 +21,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Emit workflow start
+        run: |
+          # Same Loki push, but mark as start
+          EVENT_TYPE=start
+
       - name: Extract Grafana Loki credentials
         env:
           LOKI_SECRET_JSON: ${{ secrets.LOKI_SECRET_JSON }}
