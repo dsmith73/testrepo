@@ -5,7 +5,7 @@ on:
   workflow_call:
     inputs:
       event_type:
-        description: "ci or cd"
+        description: "ci and cd"
         required: true
         type: string
       environment:
@@ -21,16 +21,16 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Extract Grafana credentials
+      - name: Extract Grafana Loki credentials
         env:
           GRAFANA_SECRET_JSON: ${{ secrets.GRAFANA_SECRET_JSON }}
         run: |
-          echo "$GRAFANA_SECRET_JSON" | jq -e '.GRAFANA_API_KEY and .GRAFANA_URL' >/dev/null
+          echo "$GRAFANA_SECRET_JSON" | jq -e '.GRAFANA_API_KEY and .LOKI_URL' >/dev/null
           echo "$GRAFANA_SECRET_JSON" | jq -r '
-            "GRAFANA_API_KEY=\(.GRAFANA_API_KEY)\nGRAFANA_URL=\(.GRAFANA_URL)"
+            "LOKI_USER=\(.LOKI_USER)\nLOKI_PASS=\(.LOKI_PASS)\nLOKI_URL=\(.LOKI_URL)"
           ' >> $GITHUB_ENV
 
-      - name: Send Grafana annotation
+      - name: Send CI/CD event to Loki
         if: always()
         env:
           REPO: ${{ github.repository }}
@@ -41,29 +41,32 @@ jobs:
           STATUS: ${{ job.status }}
           EVENT_TYPE: ${{ inputs.event_type }}
           ENVIRONMENT: ${{ inputs.environment }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          TIMESTAMP=$(date +%s000)
+          TS=$(date +%s%N)
 
-          TAGS=(
-            "github-actions"
-            "type:$EVENT_TYPE"
-            "status:$STATUS"
-            "repo:$REPO"
-            "branch:$BRANCH"
-            "workflow:$WORKFLOW"
-          )
+          LABELS="source=\"github_actions\",repo=\"$REPO\",branch=\"$BRANCH\",workflow=\"$WORKFLOW\",type=\"$EVENT_TYPE\",status=\"$STATUS\""
 
           if [ -n "$ENVIRONMENT" ]; then
-            TAGS+=("env:$ENVIRONMENT")
+            LABELS="$LABELS,env=\"$ENVIRONMENT\""
           fi
 
-          TAG_JSON=$(printf '"%s",' "${TAGS[@]}" | sed 's/,$//')
-
-          curl -s -X POST "$GRAFANA_URL/api/annotations" \
-            -H "Authorization: Bearer $GRAFANA_API_KEY" \
+          cat <<EOF | curl -s -u "$LOKI_USER:$LOKI_PASS" \
             -H "Content-Type: application/json" \
-            -d "{
-              \"time\": $TIMESTAMP,
-              \"text\": \"GitHub Actions $EVENT_TYPE\\nStatus: $STATUS\\nRepo: $REPO\\nBranch: $BRANCH\\nWorkflow: $WORKFLOW\\nCommit: ${COMMIT:0:7}\\nActor: $ACTOR\",
-              \"tags\": [$TAG_JSON]
-            }"
+            -X POST "$LOKI_URL/loki/api/v1/push" \
+            --data-binary @-
+          {
+            "streams": [
+              {
+                "stream": { $LABELS },
+                "values": [
+                  [
+                    "$TS",
+                    "{\"message\":\"GitHub Actions $EVENT_TYPE\",\"repo\":\"$REPO\",\"branch\":\"$BRANCH\",\"workflow\":\"$WORKFLOW\",\"status\":\"$STATUS\",\"commit\":\"${COMMIT:0:7}\",\"actor\":\"$ACTOR\",\"run_url\":\"$RUN_URL\"}"
+                  ]
+                ]
+              }
+            ]
+          }
+          EOF
