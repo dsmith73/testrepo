@@ -1,4 +1,5 @@
-name: Grafana Annotation (Reusable)
+name: grafana-annotation-workflow
+# Reusable workflow for annotation of CI and CD events in Grafana  
 
 on:
   workflow_call:
