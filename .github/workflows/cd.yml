@@ -17,5 +17,5 @@ jobs:
       event_type: cd
       environment: prod
     secrets:
-      GRAFANA_SECRET_JSON: ${{ secrets.LOKI_SECRET_JSON }}
+      LOKI_SECRET_JSON: ${{ secrets.LOKI_SECRET_JSON }}
 
