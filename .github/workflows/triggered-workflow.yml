@@ -11,6 +11,7 @@ on:
 
 jobs:
   do-stuff:
+    # if: ${{ github.event.action == 'do-stuff' || github.event.action == 'do-other-stuff' }}
     runs-on: ubuntu-latest
     steps:
       - run: echo "other steps here"
