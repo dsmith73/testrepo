@@ -2,23 +2,32 @@ name: triggered-workflow
 
 on:
   repository_dispatch:
+  # Called from an external source / application / product  
     types: [do-stuff, do-other-stuff]
-    client_payload:
-      EMAIL:
-      INITIATOR:
-      TICKET:
   workflow_dispatch:
+  # Direct execution from GUI or call from another workflow or automation in GitHub  
+    inputs:
+      TICKET:
+        description: 'Ticket Number'
+        required: false
+      EMAIL:
+        description: 'User Email'
+        required: false
+
 
 jobs:
   do-stuff:
-    # if: ${{ github.event.action == 'do-stuff' || github.event.action == 'do-other-stuff' }}
+    if: |
+      github.event_name == 'workflow_dispatch' || 
+      github.event.action == 'do-stuff' || 
+      github.event.action == 'do-other-stuff'
     runs-on: ubuntu-latest
     steps:
       - run: echo "other steps here"
         env:
-          TICKET: "${{ github.event.client_payload.TICKET }}"
-          INITIATOR: "${{ github.event.client_payload.INITIATOR }}"
-          EMAIL: "${{ github.event.client_payload.EMAIL }}"
+          TICKET: "${{ github.event.client_payload.TICKET || inputs.TICKET }}"
+          EMAIL: "${{ github.event.client_payload.EMAIL || inputs.EMAIL }}"
+          INITIATOR: "${{ github.event.client_payload.INITIATOR || github.actor }}"
 
 
 
