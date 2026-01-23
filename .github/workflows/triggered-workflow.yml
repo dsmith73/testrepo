@@ -1,6 +1,12 @@
 name: triggered-workflow
 
 on:
+  repository_dispatch:
+    types: [do-stuff, do-other-stuff]
+    client_payload:
+      EMAIL:
+      INITIATOR:
+      TICKET:
   workflow_dispatch:
 
 jobs:
@@ -8,6 +14,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - run: echo "other steps here"
+        env:
+          TICKET: "${{ github.event.client_payload.TICKET }}"
+          INITIATOR: "${{ github.event.client_payload.INITIATOR }}"
+          EMAIL: "${{ github.event.client_payload.EMAIL }}"
 
 
 
