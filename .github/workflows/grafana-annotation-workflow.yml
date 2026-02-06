@@ -1,5 +1,4 @@
 name: grafana-annotation-workflow
-# Reusable workflow for annotation of CI and CD events in Grafana  
 
 on:
   workflow_call:
@@ -19,40 +18,22 @@ on:
 jobs:
   annotate:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Emit workflow start
-        run: |
-          # Same Loki push, but mark as start
-          EVENT_TYPE=start
-
       - name: Extract Grafana Loki credentials
         env:
           LOKI_SECRET_JSON: ${{ secrets.LOKI_SECRET_JSON }}
         run: |
-          # Validate JSON keys
-          echo "$LOKI_SECRET_JSON" | jq -e '.LOKI_USER and .LOKI_PASS and .LOKI_URL' >/dev/null
-
-          # Extract variables safely, strip CR/LF
           LOKI_USER=$(echo "$LOKI_SECRET_JSON" | jq -r '.LOKI_USER' | tr -d '\r\n')
           LOKI_PASS=$(echo "$LOKI_SECRET_JSON" | jq -r '.LOKI_PASS' | tr -d '\r\n')
           LOKI_URL=$(echo "$LOKI_SECRET_JSON" | jq -r '.LOKI_URL' | tr -d '\r\n')
-
-          # Mask secrets
+          
           echo "::add-mask::$LOKI_USER"
           echo "::add-mask::$LOKI_PASS"
           echo "::add-mask::$LOKI_URL"
-
+          
           echo "LOKI_USER=$LOKI_USER" >> $GITHUB_ENV
           echo "LOKI_PASS=$LOKI_PASS" >> $GITHUB_ENV
           echo "LOKI_URL=$LOKI_URL" >> $GITHUB_ENV
-
-      - name: Verify Loki vars are set
-        run: |
-          echo "LOKI_USER set: ${LOKI_USER:+yes}"
-          echo "LOKI_PASS set: ${LOKI_PASS:+yes}"
-          echo "LOKI_URL set: ${LOKI_URL:+yes}"
-
 
       - name: Send CI/CD event to Loki
         if: always()
@@ -66,45 +47,151 @@ jobs:
           EVENT_TYPE: ${{ inputs.event_type }}
           ENVIRONMENT: ${{ inputs.environment }}
           RUN_ID: ${{ github.run_id }}
-          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          RUN_URL: "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
         run: |
           TS=$(date +%s%N)
 
-          # Build labels JSON safely
+          # LABELS: High-level categories for filtering in Grafana (Low Cardinality)
           LABELS_JSON=$(jq -n \
             --arg source "github_actions" \
             --arg repo "$REPO" \
-            --arg branch "$BRANCH" \
             --arg workflow "$WORKFLOW" \
             --arg type "$EVENT_TYPE" \
-            --arg status "$STATUS" \
-            --arg actor "$ACTOR" \
-            --arg env "$ENVIRONMENT" \
-            '{
-               source: $source,
-               repo: $repo,
-               branch: $branch,
-               workflow: $workflow,
-               actor: $actor,
-               type: $type,
-               status: $status
-             } + (if $env != "" then {env: $env} else {} end)'
-          )
+            --arg env "${ENVIRONMENT:-none}" \
+            '{source: $source, repo: $repo, workflow: $workflow, event_type: $type, env: $env}')
 
-          # Build event JSON and push to Loki
+          # LINE: Detailed metadata for the log body (High Cardinality)
+          # We include the 'status' and 'commit' here to avoid index bloating
+          LINE_JSON=$(jq -c -n \
+            --arg status "$STATUS" \
+            --arg commit "$COMMIT" \
+            --arg actor "$ACTOR" \
+            --arg branch "$BRANCH" \
+            --arg run_url "$RUN_URL" \
+            --arg run_id "$RUN_ID" \
+            --arg msg "GitHub Actions $EVENT_TYPE $STATUS" \
+            '{msg: $msg, status: $status, commit: $commit, actor: $actor, branch: $branch, run_url: $run_url, run_id: $run_id}')
+
+          # Combine into Loki Push API format
           jq -n \
             --arg ts "$TS" \
             --argjson stream "$LABELS_JSON" \
-            --arg message "{\"message\":\"GitHub Actions $EVENT_TYPE\",\"repo\":\"$REPO\",\"branch\":\"$BRANCH\",\"workflow\":\"$WORKFLOW\",\"status\":\"$STATUS\",\"commit\":\"${COMMIT:0:7}\",\"actor\":\"$ACTOR\",\"run_url\":\"$RUN_URL\"}" \
-            '{
-              streams: [
-                {
-                  stream: $stream,
-                  values: [[$ts, $message]]
-                }
-              ]
-            }' | curl --fail-with-body -sS \
-                  -u "$LOKI_USER:$LOKI_PASS" \
-                  -H "Content-Type: application/json" \
-                  -X POST "$LOKI_URL/loki/api/v1/push" \
-                  --data-binary @-
+            --arg line "$LINE_JSON" \
+            '{streams: [{ stream: $stream, values: [[$ts, $line]] }]}' | \
+          curl --fail-with-body -sS \
+            -u "$LOKI_USER:$LOKI_PASS" \
+            -H "Content-Type: application/json" \
+            -X POST "$LOKI_URL/loki/api/v1/push" \
+            --data-binary @-
+
+
+# name: grafana-annotation-workflow
+# # Reusable workflow for annotation of CI and CD events in Grafana  
+
+# on:
+#   workflow_call:
+#     inputs:
+#       event_type:
+#         description: "ci or cd"
+#         required: true
+#         type: string
+#       environment:
+#         description: "Optional environment (prod, staging, etc)"
+#         required: false
+#         type: string
+#     secrets:
+#       LOKI_SECRET_JSON:
+#         required: true
+
+# jobs:
+#   annotate:
+#     runs-on: ubuntu-latest
+
+#     steps:
+#       - name: Emit workflow start
+#         run: |
+#           # Same Loki push, but mark as start
+#           EVENT_TYPE=start
+
+#       - name: Extract Grafana Loki credentials
+#         env:
+#           LOKI_SECRET_JSON: ${{ secrets.LOKI_SECRET_JSON }}
+#         run: |
+#           # Validate JSON keys
+#           echo "$LOKI_SECRET_JSON" | jq -e '.LOKI_USER and .LOKI_PASS and .LOKI_URL' >/dev/null
+
+#           # Extract variables safely, strip CR/LF
+#           LOKI_USER=$(echo "$LOKI_SECRET_JSON" | jq -r '.LOKI_USER' | tr -d '\r\n')
+#           LOKI_PASS=$(echo "$LOKI_SECRET_JSON" | jq -r '.LOKI_PASS' | tr -d '\r\n')
+#           LOKI_URL=$(echo "$LOKI_SECRET_JSON" | jq -r '.LOKI_URL' | tr -d '\r\n')
+
+#           # Mask secrets
+#           echo "::add-mask::$LOKI_USER"
+#           echo "::add-mask::$LOKI_PASS"
+#           echo "::add-mask::$LOKI_URL"
+
+#           echo "LOKI_USER=$LOKI_USER" >> $GITHUB_ENV
+#           echo "LOKI_PASS=$LOKI_PASS" >> $GITHUB_ENV
+#           echo "LOKI_URL=$LOKI_URL" >> $GITHUB_ENV
+
+#       - name: Verify Loki vars are set
+#         run: |
+#           echo "LOKI_USER set: ${LOKI_USER:+yes}"
+#           echo "LOKI_PASS set: ${LOKI_PASS:+yes}"
+#           echo "LOKI_URL set: ${LOKI_URL:+yes}"
+
+
+#       - name: Send CI/CD event to Loki
+#         if: always()
+#         env:
+#           REPO: ${{ github.repository }}
+#           BRANCH: ${{ github.ref_name }}
+#           WORKFLOW: ${{ github.workflow }}
+#           COMMIT: ${{ github.sha }}
+#           ACTOR: ${{ github.actor }}
+#           STATUS: ${{ job.status }}
+#           EVENT_TYPE: ${{ inputs.event_type }}
+#           ENVIRONMENT: ${{ inputs.environment }}
+#           RUN_ID: ${{ github.run_id }}
+#           RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+#         run: |
+#           TS=$(date +%s%N)
+
+#           # Build labels JSON safely
+#           LABELS_JSON=$(jq -n \
+#             --arg source "github_actions" \
+#             --arg repo "$REPO" \
+#             --arg branch "$BRANCH" \
+#             --arg workflow "$WORKFLOW" \
+#             --arg type "$EVENT_TYPE" \
+#             --arg status "$STATUS" \
+#             --arg actor "$ACTOR" \
+#             --arg env "$ENVIRONMENT" \
+#             '{
+#                source: $source,
+#                repo: $repo,
+#                branch: $branch,
+#                workflow: $workflow,
+#                actor: $actor,
+#                type: $type,
+#                status: $status
+#              } + (if $env != "" then {env: $env} else {} end)'
+#           )
+
+#           # Build event JSON and push to Loki
+#           jq -n \
+#             --arg ts "$TS" \
+#             --argjson stream "$LABELS_JSON" \
+#             --arg message "{\"message\":\"GitHub Actions $EVENT_TYPE\",\"repo\":\"$REPO\",\"branch\":\"$BRANCH\",\"workflow\":\"$WORKFLOW\",\"status\":\"$STATUS\",\"commit\":\"${COMMIT:0:7}\",\"actor\":\"$ACTOR\",\"run_url\":\"$RUN_URL\"}" \
+#             '{
+#               streams: [
+#                 {
+#                   stream: $stream,
+#                   values: [[$ts, $message]]
+#                 }
+#               ]
+#             }' | curl --fail-with-body -sS \
+#                   -u "$LOKI_USER:$LOKI_PASS" \
+#                   -H "Content-Type: application/json" \
+#                   -X POST "$LOKI_URL/loki/api/v1/push" \
+#                   --data-binary @-
